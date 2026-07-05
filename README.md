@@ -25,7 +25,8 @@ Berikut adalah panduan untuk menjalankan proyek ini di lingkungan lokal mengguna
 
 ### 2. Siapkan File Environment
 
-Salin file `.env.example` yang ada di root proyek dan di dalam folder `backend/` menjadi `.env`.
+Ganti base IP di file ./mobile/lib/config.dart menjadi IP backend Anda.
+Atau hosting backend menggunakan ngrok dan sejenisnya.
 
 **Linux / macOS:**
 
