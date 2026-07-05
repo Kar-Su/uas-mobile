@@ -8,13 +8,29 @@ import (
 	authServ "github.com/Kar-Su/uas-mobile.git/internal/modules/auth/service"
 	userDto "github.com/Kar-Su/uas-mobile.git/internal/modules/user/dto"
 	"github.com/Kar-Su/uas-mobile.git/internal/package/constants"
-	_ "github.com/Kar-Su/uas-mobile.git/internal/package/swagger"
+	"github.com/Kar-Su/uas-mobile.git/internal/package/env"
 	"github.com/Kar-Su/uas-mobile.git/internal/package/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/do/v2"
 	"gorm.io/gorm"
 )
+
+func isSecure() bool {
+	return env.GetWithDefault[string]("GO_APP", "localhost") != "localhost"
+}
+
+func setAuthCookies(ctx *gin.Context, accessToken, refreshToken, roleName, userName string) {
+	secure := isSecure()
+	hour := 3600
+	// Cross site Need to set domain to .domain.com
+	ctx.SetSameSite(http.SameSiteStrictMode)
+	ctx.SetCookie("access_token", accessToken, 0, "/", "", secure, true)
+	ctx.SetCookie("refresh_token", refreshToken, 24*hour, "/", "", secure, true)
+	ctx.SetSameSite(http.SameSiteLaxMode)
+	ctx.SetCookie("role_name", roleName, 24*hour, "/", "", secure, false)
+	ctx.SetCookie("user_name", userName, 24*hour, "/", "", secure, false)
+}
 
 type AuthController interface {
 	FindRefreshToken(ctx *gin.Context)
@@ -96,6 +112,17 @@ func (c *authController) FindRefreshToken(ctx *gin.Context) {
 // @Failure      400  {object}  swagger.ErrLoginFailed
 // @Failure      500  {object}  swagger.ErrLoginInternalServer
 // @Router       /api/auth/login [post]
+
+func clearAuthCookies(ctx *gin.Context) {
+	secure := isSecure()
+	ctx.SetSameSite(http.SameSiteStrictMode)
+	ctx.SetCookie("access_token", "", -1, "/", "", secure, true)
+	ctx.SetCookie("refresh_token", "", -1, "/", "", secure, true)
+	ctx.SetSameSite(http.SameSiteLaxMode)
+	ctx.SetCookie("role_name", "", -1, "/", "", false, false)
+	ctx.SetCookie("user_name", "", -1, "/", "", false, false)
+}
+
 func (c *authController) Login(ctx *gin.Context) {
 	path := ctx.Request.URL.Path
 	var req userDto.UserLoginRequest
@@ -116,7 +143,11 @@ func (c *authController) Login(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
 	}
-	res := utils.BuildResponse(userDto.MESSAGE_SUCCESS_LOGIN_USER, result, utils.WithPath(path))
+
+	setAuthCookies(ctx, result.AccessToken, result.RefreshToken, result.RoleName, result.UserName)
+
+	safe := dto.SafeTokenResponse{RoleName: result.RoleName, UserName: result.UserName}
+	res := utils.BuildResponse(userDto.MESSAGE_SUCCESS_LOGIN_USER, safe, utils.WithPath(path))
 	ctx.JSON(http.StatusOK, res)
 }
 
@@ -154,6 +185,7 @@ func (c *authController) Logout(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
 	}
+	clearAuthCookies(ctx)
 	res := utils.BuildResponse(dto.MESSAGE_SUCCESS_LOGOUT, any(nil), utils.WithPath(path))
 	ctx.JSON(http.StatusOK, res)
 }
@@ -181,14 +213,19 @@ func (c *authController) Logout(ctx *gin.Context) {
 // @Router       /api/auth/refresh-token [post]
 func (c *authController) RefreshToken(ctx *gin.Context) {
 	path := ctx.Request.URL.Path
-	var req dto.RefreshTokenRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		res := utils.BuildResponseFailed(constants.MESAGE_FAILED_GET_DATA_FROM_BODY, err.Error(), utils.WithPath(path))
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
-		return
+
+	refreshTokenStr, err := ctx.Cookie("refresh_token")
+	if err != nil || refreshTokenStr == "" {
+		var req dto.RefreshTokenRequest
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			res := utils.BuildResponseFailed(constants.MESAGE_FAILED_GET_DATA_FROM_BODY, err.Error(), utils.WithPath(path))
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
+			return
+		}
+		refreshTokenStr = req.RefreshToken
 	}
 
-	result, err := c.authService.RefreshToken(ctx, req)
+	result, err := c.authService.RefreshToken(ctx, dto.RefreshTokenRequest{RefreshToken: refreshTokenStr})
 	if err != nil {
 		if errors.Is(err, constants.ErrInternalErr) {
 			res := utils.BuildResponseFailed(dto.MESSAGE_FAILED_REFRESH_TOKEN, err.Error(), utils.WithPath(path))
@@ -196,17 +233,22 @@ func (c *authController) RefreshToken(ctx *gin.Context) {
 			return
 		}
 		if errors.Is(err, dto.ErrRefreshTokenExpired) {
+			clearAuthCookies(ctx)
 			res := utils.BuildResponseFailed(dto.MESSAGE_FAILED_REFRESH_TOKEN, err.Error(), utils.WithPath(path))
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, res)
 			return
 		}
 
+		clearAuthCookies(ctx)
 		res := utils.BuildResponseFailed(dto.MESSAGE_FAILED_REFRESH_TOKEN, err.Error(), utils.WithPath(path))
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, res)
 		return
 	}
 
-	res := utils.BuildResponse(dto.MESSAGE_SUCCESS_REFRESH_TOKEN, result, utils.WithPath(path))
+	setAuthCookies(ctx, result.AccessToken, result.RefreshToken, result.RoleName, result.UserName)
+
+	safe := dto.SafeTokenResponse{RoleName: result.RoleName, UserName: result.UserName}
+	res := utils.BuildResponse(dto.MESSAGE_SUCCESS_REFRESH_TOKEN, safe, utils.WithPath(path))
 	ctx.JSON(http.StatusOK, res)
 }
 

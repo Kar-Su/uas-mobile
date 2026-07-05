@@ -3,7 +3,8 @@ package repository
 import (
 	"context"
 	"time"
-	"web-hosting/internal/database/entities"
+
+	"github.com/Kar-Su/uas-mobile.git/internal/database/entities"
 
 	"gorm.io/gorm"
 )
@@ -44,6 +45,7 @@ func (r *refreshTokenRepository) FindByToken(ctx context.Context, tx *gorm.DB, t
 	}
 	return result, nil
 }
+
 func (r *refreshTokenRepository) DeleteByUserID(ctx context.Context, tx *gorm.DB, userId string) error {
 	if tx == nil {
 		tx = r.db
@@ -53,6 +55,7 @@ func (r *refreshTokenRepository) DeleteByUserID(ctx context.Context, tx *gorm.DB
 	}
 	return nil
 }
+
 func (r *refreshTokenRepository) DeleteByToken(ctx context.Context, tx *gorm.DB, token string) error {
 	if tx == nil {
 		tx = r.db
@@ -62,11 +65,12 @@ func (r *refreshTokenRepository) DeleteByToken(ctx context.Context, tx *gorm.DB,
 	}
 	return nil
 }
+
 func (r *refreshTokenRepository) DeleteExpired(ctx context.Context, tx *gorm.DB) error {
 	if tx == nil {
 		tx = r.db
 	}
-	if err := tx.WithContext(ctx).Where("expired_at < ?", time.Now()).Delete(&entities.RefreshToken{}).Error; err != nil {
+	if err := tx.WithContext(ctx).Where("expires_at < ?", time.Now()).Delete(&entities.RefreshToken{}).Error; err != nil {
 		return err
 	}
 	return nil

@@ -7,29 +7,26 @@ import (
 	"fmt"
 	"log"
 	"time"
-	"web-hosting/internal/modules/auth/dto"
-	"web-hosting/internal/package/constants"
+
+	"github.com/Kar-Su/uas-mobile.git/internal/modules/auth/dto"
+	"github.com/Kar-Su/uas-mobile.git/internal/package/constants"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 )
 
 type JwtService interface {
-	GenerateAccessToken(userId string, roleName string, userEmail string, detailId *uuid.UUID, kelasId uuid.UUID) (string, error)
+	GenerateAccessToken(userId string, roleName string, userEmail string) (string, error)
 	GenerateRefreshToken() (string, time.Time)
 	ValidateToken(token string) (*jwt.Token, error)
 	GetUserIDByToken(token string) (string, error)
 	GetRoleNameByToken(token string) (string, error)
 	GetUserEmailByToken(tokenString string) (string, error)
-	GetDetailIDByToken(token string) (uuid.UUID, error)
 }
 
 type jwtCustomClaim struct {
-	UserID    string    `json:"user_id"`
-	DetailID  uuid.UUID `json:"detail_id"`
-	RoleName  string    `json:"role_name"`
-	UserEmail string    `json:"user_email"`
-	KelasID   uuid.UUID `json:"kelas_id"`
+	UserID    string `json:"user_id"`
+	RoleName  string `json:"role_name"`
+	UserEmail string `json:"user_email"`
 	jwt.RegisteredClaims
 }
 
@@ -57,16 +54,9 @@ func NewJwtService() JwtService {
 	}
 }
 
-func (j *jwtService) GenerateAccessToken(userId string, roleName string, userEmail string, detailId *uuid.UUID, kelasId uuid.UUID) (string, error) {
-	var claimDetailID uuid.UUID
-	if detailId != nil {
-		claimDetailID = *detailId
-	}
-
+func (j *jwtService) GenerateAccessToken(userId string, roleName string, userEmail string) (string, error) {
 	claims := jwtCustomClaim{
 		UserID:    userId,
-		DetailID:  claimDetailID,
-		KelasID:   kelasId,
 		RoleName:  roleName,
 		UserEmail: userEmail,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -152,21 +142,4 @@ func (j *jwtService) GetUserEmailByToken(tokenString string) (string, error) {
 	}
 
 	return "", fmt.Errorf("invalid token claims")
-}
-
-func (j *jwtService) GetDetailIDByToken(tokenString string) (uuid.UUID, error) {
-	token, err := j.ValidateToken(tokenString)
-
-	if err != nil {
-		if errors.Is(err, jwt.ErrTokenExpired) {
-			return uuid.Nil, fmt.Errorf("token has expired")
-		}
-		return uuid.Nil, err
-	}
-
-	if claims, ok := token.Claims.(*jwtCustomClaim); ok && token.Valid {
-		return claims.DetailID, nil
-	}
-
-	return uuid.Nil, fmt.Errorf("invalid token claims")
 }

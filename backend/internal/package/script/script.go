@@ -3,29 +3,22 @@ package script
 import (
 	"log"
 	"os"
-	"slices"
-	"web-hosting/internal/database"
-	"web-hosting/internal/package/constants"
+
+	"github.com/Kar-Su/uas-mobile.git/internal/database"
+	"github.com/Kar-Su/uas-mobile.git/internal/package/constants"
 
 	"github.com/samber/do/v2"
 	"gorm.io/gorm"
 )
 
 func Commands(injector do.Injector) bool {
-	// db := do.MustInvokeNamed[*gorm.DB](injector, constants.DB_TEST)
 	db := do.MustInvokeNamed[*gorm.DB](injector, constants.DB)
-	seed := false
-	dummy := false
 
-	if arg := os.Args[1]; arg == "--seed" {
-		seed = true
+	if len(os.Args) < 2 {
+		return false
 	}
 
-	if slices.Contains(os.Args, "--dummy") {
-		dummy = true
-	}
-
-	if seed {
+	if os.Args[1] == "--seed" {
 		if err := database.Seeder(db); err != nil {
 			log.Fatalf("error migration seeder: %v", err)
 		}

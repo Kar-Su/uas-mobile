@@ -5,16 +5,15 @@ import (
 	"errors"
 	"log"
 	"time"
-	"web-hosting/internal/database/entities"
-	authDto "web-hosting/internal/modules/auth/dto"
-	"web-hosting/internal/modules/auth/repository"
-	kelasRepo "web-hosting/internal/modules/kelas/repository"
-	userDto "web-hosting/internal/modules/user/dto"
-	userRepo "web-hosting/internal/modules/user/repository"
-	"web-hosting/internal/package/constants"
-	"web-hosting/internal/package/helpers"
 
-	"github.com/google/uuid"
+	"github.com/Kar-Su/uas-mobile.git/internal/database/entities"
+	authDto "github.com/Kar-Su/uas-mobile.git/internal/modules/auth/dto"
+	"github.com/Kar-Su/uas-mobile.git/internal/modules/auth/repository"
+	userDto "github.com/Kar-Su/uas-mobile.git/internal/modules/user/dto"
+	userRepo "github.com/Kar-Su/uas-mobile.git/internal/modules/user/repository"
+	"github.com/Kar-Su/uas-mobile.git/internal/package/constants"
+	"github.com/Kar-Su/uas-mobile.git/internal/package/helpers"
+
 	"gorm.io/gorm"
 )
 
@@ -29,16 +28,14 @@ type AuthService interface {
 
 type authService struct {
 	useRepo          userRepo.UserRepository
-	kelasPivotRepo   kelasRepo.KelasMahasiswaRepository
 	refreshTokenRepo repository.RefreshTokenRepository
 	jwtService       JwtService
 	db               *gorm.DB
 }
 
-func NewAuthService(useRepo userRepo.UserRepository, refreshTokenRepo repository.RefreshTokenRepository, kelasPivotRepo kelasRepo.KelasMahasiswaRepository, jwtService JwtService, db *gorm.DB) AuthService {
+func NewAuthService(userRepo userRepo.UserRepository, refreshTokenRepo repository.RefreshTokenRepository, jwtService JwtService, db *gorm.DB) AuthService {
 	return &authService{
-		useRepo:          useRepo,
-		kelasPivotRepo:   kelasPivotRepo,
+		useRepo:          userRepo,
 		refreshTokenRepo: refreshTokenRepo,
 		jwtService:       jwtService,
 		db:               db,
@@ -57,7 +54,7 @@ func (s *authService) FindRefreshToken(ctx context.Context, token string) (authD
 
 	return authDto.RefreshTokenResponse{
 		RefreshToken: refreshToken.Token,
-		Exp:          refreshToken.ExpiredAt.Unix(),
+		Exp:          refreshToken.ExpiresAt.Unix(),
 	}, nil
 }
 
@@ -75,18 +72,7 @@ func (s *authService) Login(ctx context.Context, req userDto.UserLoginRequest) (
 		return authDto.TokenResponse{}, err
 	}
 
-	kelasId := uuid.Nil
-	if user.Role.Name == constants.ROLE_MAHASISWA {
-		kelasId, err = s.kelasPivotRepo.GetKelasIdByMahasiswa(ctx, s.db, user.DetailID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-			}
-			log.Printf("Internal Error: %v", err)
-			return authDto.TokenResponse{}, constants.ErrInternalErr
-		}
-	}
-
-	accessToken, err := s.jwtService.GenerateAccessToken(user.ID.String(), user.Role.Name, user.Email, user.DetailID, kelasId)
+	accessToken, err := s.jwtService.GenerateAccessToken(user.ID.String(), user.Role.Name, user.Email)
 	if err != nil {
 		log.Printf("Internal Error: %v", err)
 		return authDto.TokenResponse{}, constants.ErrInternalErr
@@ -97,7 +83,7 @@ func (s *authService) Login(ctx context.Context, req userDto.UserLoginRequest) (
 	refreshTokenEntity := entities.RefreshToken{
 		UserID:    user.ID,
 		Token:     refreshToken,
-		ExpiredAt: exp,
+		ExpiresAt: exp,
 	}
 
 	_, err = s.refreshTokenRepo.Create(ctx, s.db, refreshTokenEntity)
@@ -127,8 +113,9 @@ func (s *authService) RefreshToken(ctx context.Context, req authDto.RefreshToken
 		log.Printf("Internal Error: %v", err)
 		return authDto.TokenResponse{}, constants.ErrInternalErr
 	}
-
-	if refreshTokenEntity.ExpiredAt.Before(time.Now()) {
+	log.Printf("Token %v found, expires at %v", refreshTokenEntity.Token, refreshTokenEntity.ExpiresAt)
+	if refreshTokenEntity.ExpiresAt.Before(time.Now()) {
+		log.Printf("Token %v expired at %v", refreshTokenEntity.Token, refreshTokenEntity.ExpiresAt)
 		s.refreshTokenRepo.DeleteByToken(ctx, s.db, req.RefreshToken)
 		return authDto.TokenResponse{}, authDto.ErrRefreshTokenExpired
 	}
@@ -138,13 +125,7 @@ func (s *authService) RefreshToken(ctx context.Context, req authDto.RefreshToken
 		return authDto.TokenResponse{}, constants.ErrInternalErr
 	}
 
-	kelasId, err := s.kelasPivotRepo.GetKelasIdByMahasiswa(ctx, s.db, refreshTokenEntity.User.DetailID)
-	if err != nil {
-		log.Printf("Internal Error: %v", err)
-		return authDto.TokenResponse{}, constants.ErrInternalErr
-	}
-
-	accessToken, err := s.jwtService.GenerateAccessToken(refreshTokenEntity.UserID.String(), refreshTokenEntity.User.Role.Name, refreshTokenEntity.User.Email, refreshTokenEntity.User.DetailID, kelasId)
+	accessToken, err := s.jwtService.GenerateAccessToken(refreshTokenEntity.UserID.String(), refreshTokenEntity.User.Role.Name, refreshTokenEntity.User.Email)
 	if err != nil {
 		log.Printf("Internal Error: %v", err)
 		return authDto.TokenResponse{}, constants.ErrInternalErr
@@ -155,7 +136,7 @@ func (s *authService) RefreshToken(ctx context.Context, req authDto.RefreshToken
 	refreshTokenEntityNew := entities.RefreshToken{
 		UserID:    refreshTokenEntity.UserID,
 		Token:     refreshTokenNew,
-		ExpiredAt: exp,
+		ExpiresAt: exp,
 	}
 
 	_, err = s.refreshTokenRepo.Create(ctx, s.db, refreshTokenEntityNew)

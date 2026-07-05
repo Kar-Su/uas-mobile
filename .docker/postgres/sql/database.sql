@@ -18,9 +18,9 @@ CREATE TABLE "refresh_tokens" (
   "id" uuid PRIMARY KEY DEFAULT uuidv7(),
   "user_id" uuid NOT NULL,
   "token" text NOT NULL,
-  "expires_at" timestamp NOT NULL,
-  "created_at" timestamp NOT NULL,
-  "updated_at" timestamp NOT NULL
+  "expires_at" timestamptz NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
 );
 
 CREATE TABLE "tipe_barang" (
@@ -40,8 +40,8 @@ CREATE TABLE "barang" (
   "tipe_id" integer NOT NULL,
   "satuan_id" integer NOT NULL,
   "quantity" integer DEFAULT 0,
-  "created_at" timestamp NOT NULL,
-  "updated_at" timestamp NOT NULL
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
 );
 
 CREATE UNIQUE INDEX "idx_users_email" ON "users" ("email");

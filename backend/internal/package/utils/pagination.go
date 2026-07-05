@@ -3,7 +3,8 @@ package utils
 const DefaultPageSize = 10
 
 type PaginationQuery struct {
-	Page int `form:"page,default=1" example:"1"`
+	Page  int `form:"page,default=1" example:"1"`
+	Limit int `form:"limit" example:"10"`
 }
 
 type PaginationMeta struct {
@@ -13,11 +14,22 @@ type PaginationMeta struct {
 	TotalPages int   `json:"total_pages" example:"10"`
 }
 
+func ResolvePageSize(limit int) int {
+	if limit > 0 {
+		return limit
+	}
+	return DefaultPageSize
+}
+
 func GetOffset(page int) int {
+	return GetOffsetWithSize(page, DefaultPageSize)
+}
+
+func GetOffsetWithSize(page, pageSize int) int {
 	if page <= 0 {
 		page = 1
 	}
-	return (page - 1) * DefaultPageSize
+	return (page - 1) * pageSize
 }
 
 func GetPage(page int) int {
@@ -28,11 +40,15 @@ func GetPage(page int) int {
 }
 
 func CountTotalPages(totalItems int64) int {
-	if totalItems == 0 {
+	return CountTotalPagesWithSize(totalItems, DefaultPageSize)
+}
+
+func CountTotalPagesWithSize(totalItems int64, pageSize int) int {
+	if totalItems == 0 || pageSize <= 0 {
 		return 1
 	}
-	pages := int(totalItems) / DefaultPageSize
-	if int(totalItems)%DefaultPageSize != 0 {
+	pages := int(totalItems) / pageSize
+	if int(totalItems)%pageSize != 0 {
 		pages++
 	}
 	return pages
@@ -41,10 +57,15 @@ func CountTotalPages(totalItems int64) int {
 // NewPaginationMeta builds a PaginationMeta from a page number and total item count.
 // Pass the result to WithMeta() when calling BuildResponse.
 func NewPaginationMeta(page int, totalItems int64) *PaginationMeta {
+	return NewPaginationMetaWithSize(page, totalItems, DefaultPageSize)
+}
+
+func NewPaginationMetaWithSize(page int, totalItems int64, pageSize int) *PaginationMeta {
+	resolved := ResolvePageSize(pageSize)
 	return &PaginationMeta{
 		Page:       GetPage(page),
-		PerPage:    DefaultPageSize,
+		PerPage:    resolved,
 		TotalItems: totalItems,
-		TotalPages: CountTotalPages(totalItems),
+		TotalPages: CountTotalPagesWithSize(totalItems, resolved),
 	}
 }

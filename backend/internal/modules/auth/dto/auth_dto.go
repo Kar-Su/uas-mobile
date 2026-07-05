@@ -37,6 +37,11 @@ type (
 		RoleName     string `json:"role_name" example:"raja-sawit"`
 	}
 
+	SafeTokenResponse struct {
+		RoleName string `json:"role_name"`
+		UserName string `json:"user_name"`
+	}
+
 	ResetPasswordRequest struct {
 		Email       string `json:"email" binding:"required,email" example:"rezi.gaming@test.com //required"`
 		NewPassword string `json:"new_password" binding:"required,min=8" example:"inipasswordrezi //required, min 8 char"`

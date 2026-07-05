@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f9fa;
+  --foreground: #171717;
+  --sidebar: #1b1b2f;
+  --sidebar-hover: #162447;
+  --card: #ffffff;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}

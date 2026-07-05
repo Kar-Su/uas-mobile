@@ -3,7 +3,8 @@ package middlewares
 import (
 	"net/http"
 	"slices"
-	"web-hosting/internal/package/utils"
+
+	"github.com/Kar-Su/uas-mobile.git/internal/package/utils"
 
 	"github.com/gin-gonic/gin"
 )

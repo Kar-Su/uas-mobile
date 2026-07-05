@@ -12,8 +12,11 @@ services:
     working_dir: /golang
     volumes:
       - ./backend:/golang
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     environment:
       - ENV=development
+      - GOTOOLCHAIN=auto
     env_file:
       - .env
       - backend/.env
@@ -50,6 +53,9 @@ services:
       start_period: 30s
     volumes:
       - ./.docker/postgres/sql:/docker-entrypoint-initdb.d
+      - ./.docker/postgres/data:/var/lib/postgresql
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     networks:
       - uas_mobile
 

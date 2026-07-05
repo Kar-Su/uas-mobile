@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"web-hosting/internal/middlewares"
-	"web-hosting/internal/modules/auth/controller"
-	"web-hosting/internal/modules/auth/service"
-	"web-hosting/internal/package/constants"
+	"github.com/Kar-Su/uas-mobile.git/internal/middlewares"
+	"github.com/Kar-Su/uas-mobile.git/internal/modules/auth/controller"
+	"github.com/Kar-Su/uas-mobile.git/internal/modules/auth/service"
+	"github.com/Kar-Su/uas-mobile.git/internal/package/constants"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/do/v2"

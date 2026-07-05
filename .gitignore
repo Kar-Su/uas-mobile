@@ -5,7 +5,7 @@ idea
 *.env
 cloudflare
 
-context
+# context-ai/
 
 node_modules/
 .pnp
@@ -196,3 +196,8 @@ app.*.symbols
 .agents/rules/personal-*
 .agents/skills/personal-*
 /.agent-shell/
+AGENTS.md
+context-ai/
+.agents/
+
+.docker/postgres/data/*
